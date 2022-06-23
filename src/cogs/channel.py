@@ -136,6 +136,41 @@ class PlatformConfiguration(commands.Cog):
             ephemeral=True
         )
 
+    @commands.slash_command(name="remove-notification-role", guild_ids=test_guilds)
+    @commands.cooldown(10, 60, commands.BucketType.guild)
+    @commands.has_permissions(administrator=True)
+    @commands.guild_only()
+    async def remove_notification_role(
+            self,
+            inter: disnake.ApplicationCommandInteraction,
+    ) -> None:
+        """Remove notification mentions.
+        """
+
+        inter.response.defer
+        cursor = await self.bot.conn.execute(
+            f"SELECT notification_role_id FROM data WHERE guild_id='{inter.guild.id}';"
+        )
+        data = await cursor.fetchall()
+        await self.bot.conn.commit()
+        await cursor.close()
+
+        if (not data) or data[0][0] is None:
+            return await inter.response.send_message(
+                content="Notification mention role hasn't been setup yet. Nothing changed.",
+                ephemeral=True,
+            )
+        else:
+            cursor = await self.bot.conn.execute(
+                f"UPDATE data SET notification_role_id = NULL WHERE guild_id={inter.guild.id};"
+            )
+            await self.bot.conn.commit()
+            await cursor.close()
+            return await inter.response.send_message(
+                content="Notification mention role has been deleted.",
+                ephemeral=True,
+            )
+
 
 def setup(bot: commands.Bot):
     bot.add_cog(PlatformConfiguration(bot))
