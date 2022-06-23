@@ -7,13 +7,13 @@ import disnake
 from disnake.ext import commands
 
 test_guilds = [int(os.getenv("TEST_GUILD"))]
+platforms = Literal["instagram", "twitter", "twitch", "youtube"]
 
 log = logging.getLogger("Configuration cog")
 coloredlogs.install(logger=log)
 # TODO: Add error handler cog.
 # TODO: Add slash command to check current server configuration.
-# TODO: Add slash command to REMOVE platform channel ids.
-# NOTE: Note ^ Check if channel is None before removal / posting attempts.
+# NOTE: Check if channel is None before posting attempts.
 
 
 class PlatformConfiguration(commands.Cog):
@@ -31,12 +31,7 @@ class PlatformConfiguration(commands.Cog):
     async def set_platform_channel(
             self,
             inter: disnake.ApplicationCommandInteraction,
-            platform_type: Literal[
-                "instagram",
-                "twitter",
-                "twitch",
-                "youtube"
-            ],
+            platform_type: platforms,
             channel: disnake.TextChannel
     ) -> None:
         """Set announcement channel for any platform
@@ -65,6 +60,46 @@ class PlatformConfiguration(commands.Cog):
             content=f"{platform_type.capitalize()} announcement channel has been set to <#{channel.id}>.",
             ephemeral=True
         )
+
+    @commands.slash_command(name="remove-platform-channel", guild_ids=test_guilds)
+    @commands.cooldown(10, 60, commands.BucketType.guild)
+    @commands.has_permissions(administrator=True)
+    @commands.guild_only()
+    async def remove_platform_channel(
+            self,
+            inter: disnake.ApplicationCommandInteraction,
+            platform_type: platforms
+    ) -> None:
+        """Remove announcement channel for any platform
+
+        Parameters
+        ----------
+        platform_type: A social platform of choice.
+        """
+
+        inter.response.defer
+        cursor = await self.bot.conn.execute(
+            f"SELECT {platform_type}_channel_id FROM data WHERE guild_id='{inter.guild.id}';"
+        )
+        data = await cursor.fetchall()
+        await self.bot.conn.commit()
+        await cursor.close()
+
+        if (not data) or data[0][0] is None:
+            return await inter.response.send_message(
+                content=f"{platform_type.capitalize()} has not been set yet. Nothing changed.",
+                ephemeral=True,
+            )
+        else:
+            cursor = await self.bot.conn.execute(
+                f"UPDATE data SET {platform_type}_channel_id = NULL WHERE guild_id={inter.guild.id};"
+            )
+            await self.bot.conn.commit()
+            await cursor.close()
+            return await inter.response.send_message(
+                content=f"{platform_type.capitalize()} channel record has been deleted",
+                ephemeral=True,
+            )
 
     @commands.slash_command(name="set-notification-role", guild_ids=test_guilds)
     @commands.cooldown(10, 60, commands.BucketType.guild)
