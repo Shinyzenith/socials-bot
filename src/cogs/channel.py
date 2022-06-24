@@ -194,6 +194,12 @@ class PlatformConfiguration(commands.Cog):
         await self.bot.conn.commit()
         await cursor.close()
 
+        if not data:
+            return await inter.response.send_message(
+                content="Server settings have not been configured.",
+                ephemeral=True
+            )
+
         class IDType(enum.Enum):
             Role = 0
             Channel = 1
