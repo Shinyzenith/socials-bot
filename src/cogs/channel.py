@@ -6,7 +6,11 @@ import coloredlogs
 import disnake
 from disnake.ext import commands
 
-test_guilds = [int(os.getenv("TEST_GUILD"))]
+try:
+    test_guilds = [int(os.getenv("TEST_GUILD"))]
+except:
+    test_guilds = []
+
 platforms = Literal["instagram", "twitter", "twitch", "youtube"]
 
 log = logging.getLogger("Configuration cog")
