@@ -1,3 +1,4 @@
+import enum
 import logging
 import os
 from typing import Literal
@@ -8,7 +9,7 @@ from disnake.ext import commands
 
 try:
     test_guilds = [int(os.getenv("TEST_GUILD"))]
-except:
+finally:
     test_guilds = []
 
 platforms = Literal["instagram", "twitter", "twitch", "youtube"]
@@ -16,7 +17,6 @@ platforms = Literal["instagram", "twitter", "twitch", "youtube"]
 log = logging.getLogger("Configuration cog")
 coloredlogs.install(logger=log)
 # TODO: Add error handler cog.
-# TODO: Add slash command to check current server configuration.
 # NOTE: Check if channel is None before posting attempts.
 
 
@@ -174,6 +174,65 @@ class PlatformConfiguration(commands.Cog):
                 content="Notification mention role has been deleted.",
                 ephemeral=True,
             )
+
+    @commands.slash_command(name="view-server-configuration", guild_ids=test_guilds)
+    @commands.cooldown(10, 60, commands.BucketType.guild)
+    @commands.has_permissions(administrator=True)
+    @commands.guild_only()
+    async def view_server_configuration(
+            self,
+            inter: disnake.ApplicationCommandInteraction,
+    ) -> None:
+        """View server configuration.
+        """
+
+        inter.response.defer
+        cursor = await self.bot.conn.execute(
+            f"SELECT * FROM data WHERE guild_id='{inter.guild.id}';"
+        )
+        data = await cursor.fetchall()
+        await self.bot.conn.commit()
+        await cursor.close()
+
+        class IDType(enum.Enum):
+            Role = 0
+            Channel = 1
+
+        def parse_none(data: str | None, data_type: IDType, fallback_str: str = "Not set.") -> str:
+            if data is None:
+                return fallback_str
+            else:
+                match data_type:
+                    case IDType.Channel:
+                        return "<#" + str(data) + ">"
+                    case IDType.Role:
+                        return "<@&" + str(data) + ">"
+                # If the idtype passed isn't one that we support, we return fallback string.
+                return fallback_str
+
+        data                 = data[0]  # noqa
+        instagram_channel_id = parse_none(data[1], IDType.Channel)  # noqa
+        twitch_channel_id    = parse_none(data[2], IDType.Channel)  # noqa
+        twitter_channel_id   = parse_none(data[3], IDType.Channel)  # noqa
+        youtube_channel_id   = parse_none(data[4], IDType.Channel)  # noqa
+        notification_role_id = parse_none(data[5], IDType.Role)  # noqa
+
+        return await inter.response.send_message(
+            embed=disnake.Embed(
+                title="Socials Bot",
+                description="Server configuration",
+                colour=inter.author.colour,
+            ).set_author(
+                name="Written by Shinyzenith#2939",
+                url="https://shinyzenith.xyz/",
+                icon_url="https://aakash.is-a.dev/images/avatar.png"
+            ).add_field(
+                name="Info:",
+                value=f"Guild: {inter.guild.name}\nNotification Role: {notification_role_id}\n\nInstagram Channel: {instagram_channel_id}\nTwitch Channel: {twitch_channel_id}\nTwitter Channel: {twitter_channel_id}\nYouTube Channel: {youtube_channel_id}",  # noqa
+                inline=True
+            ),
+            ephemeral=True
+        )
 
 
 def setup(bot: commands.Bot):
