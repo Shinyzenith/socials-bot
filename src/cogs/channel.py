@@ -16,7 +16,7 @@ platforms = Literal["instagram", "twitter", "twitch", "youtube"]
 
 log = logging.getLogger("Configuration cog")
 coloredlogs.install(logger=log)
-# TODO: Add error handler cog.
+# TODO: Add error handler cog, add a command to set the user from the platform
 # NOTE: Check if channel is None before posting attempts.
 
 
